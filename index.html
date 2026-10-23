@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO -->
+  <title>Customer Ticket Queue Visualizer | Circular Queue Demo</title>
+  <meta name="description"
+    content="Interactive circular queue visualizer using customer support tickets.
+             Demonstrates enqueue, dequeue, front, rear, overflow/underflow,
+             animated pointers, wrap-around, and full operation log." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════
+       PAGE HEADER
+  ══════════════════════════════════════════ -->
+  <header class="page-header" role="banner">
+    <h1>Customer Ticket <span>Queue Visualizer</span></h1>
+    <p>Array-based Circular Queue &mdash; Capacity&nbsp;5 &bull; FIFO &bull; All operations O(1)</p>
+  </header>
+
+  <!-- ══════════════════════════════════════════
+       MAIN CARD
+  ══════════════════════════════════════════ -->
+  <main class="card" role="main" aria-label="Circular Queue Visualizer">
+
+    <!-- Card header stripe -->
+    <div class="card-header">
+      <span class="icon" aria-hidden="true">🎫</span>
+      <h2>Customer Support Ticket Queue</h2>
+      <span class="badge-capacity" aria-label="Capacity 5 slots">CAPACITY&nbsp;=&nbsp;5</span>
+    </div>
+
+    <div class="card-body">
+
+      <!-- ─── LEFT: QUEUE VISUALIZATION ─── -->
+      <section class="queue-area" aria-label="Queue visualization">
+
+        <h3 class="section-label">Queue Slots (Circular Array)</h3>
+
+        <p class="circular-label">
+          <span class="arrow-loop" aria-hidden="true">↻</span>
+          After slot [4], rear wraps to slot [0] via
+          <code>(rear&nbsp;+&nbsp;1)&nbsp;%&nbsp;5</code>
+        </p>
+
+        <!-- Slots + animated pointer bar -->
+        <div class="slots-outer" id="slots-outer">
+
+          <!-- Wrap-around toast badge (shown by JS) -->
+          <div id="wrap-badge" class="wrap-badge" role="status" aria-live="polite">
+            ↻ Wrapped! rear: [4]&nbsp;→&nbsp;[0]
+          </div>
+
+          <!-- Animated FRONT / REAR pointer labels (positioned by JS) -->
+          <div class="ptr-bar" id="ptr-bar" aria-hidden="true">
+            <div class="ptr-item ptr-front" id="ptr-front">
+              <span class="ptr-text">FRONT</span>
+              <span class="ptr-arrow">▼</span>
+            </div>
+            <div class="ptr-item ptr-rear" id="ptr-rear">
+              <span class="ptr-text">REAR</span>
+              <span class="ptr-arrow">▼</span>
+            </div>
+          </div>
+
+          <!-- 5 slot boxes — built dynamically by buildSlots() in script.js -->
+          <div id="slots-container" role="list" aria-label="Queue slots"></div>
+
+        </div><!-- /.slots-outer -->
+
+        <!-- ─── OPERATION BUTTONS ─── -->
+        <div class="buttons-section">
+          <h3 class="section-label">Operations</h3>
+
+          <div class="btn-grid" role="group" aria-label="Queue operation buttons">
+            <button id="btn-enqueue" class="btn btn-enqueue"
+                    title="Add next ticket to rear of queue (E)"
+                    aria-label="New Ticket – Enqueue (shortcut: E)">
+              ➕ New Ticket
+            </button>
+            <button id="btn-dequeue" class="btn btn-dequeue"
+                    title="Serve and remove front ticket (D)"
+                    aria-label="Serve Ticket – Dequeue (shortcut: D)">
+              ✅ Serve Ticket
+            </button>
+            <button id="btn-front" class="btn btn-front"
+                    title="Peek at front ticket without removing"
+                    aria-label="Show Front ticket">
+              👁 Show Front
+            </button>
+            <button id="btn-rear" class="btn btn-rear"
+                    title="Peek at rear ticket without removing"
+                    aria-label="Show Rear ticket">
+              👁 Show Rear
+            </button>
+            <button id="btn-empty" class="btn btn-empty"
+                    title="Check whether queue is empty"
+                    aria-label="Check if queue is Empty">
+              ❓ Check Empty
+            </button>
+            <button id="btn-reset" class="btn btn-reset"
+                    title="Reset queue to initial empty state"
+                    aria-label="Reset queue">
+              🔄 Reset
+            </button>
+          </div><!-- /.btn-grid -->
+
+          <!-- Demo controls -->
+          <div class="demo-controls">
+            <button id="btn-demo" class="btn btn-demo"
+                    title="Auto-run a preset sequence of operations to demonstrate all features"
+                    aria-label="Run automated demo sequence">
+              ▶ Run Demo
+            </button>
+            <div class="speed-wrap">
+              <label for="speed-select" class="speed-label">Speed:</label>
+              <select id="speed-select" class="speed-select" aria-label="Demo animation speed">
+                <option value="slow">Slow (2 s)</option>
+                <option value="normal" selected>Normal (1 s)</option>
+                <option value="fast">Fast (0.4 s)</option>
+              </select>
+            </div>
+          </div><!-- /.demo-controls -->
+
+          <p class="keyboard-hint" aria-label="Keyboard shortcuts">
+            ⌨️ Shortcuts:&nbsp;<kbd>E</kbd>&nbsp;=&nbsp;Enqueue &nbsp;|&nbsp;
+            <kbd>D</kbd>&nbsp;=&nbsp;Dequeue
+          </p>
+        </div><!-- /.buttons-section -->
+
+      </section><!-- /.queue-area -->
+
+      <!-- ─── RIGHT: INFO PANEL ─── -->
+      <aside class="info-panel" aria-label="Queue state information">
+        <h3 class="section-label">Queue State</h3>
+
+        <div class="info-box" role="status" aria-label="Front ticket">
+          <div class="info-label">Front Ticket</div>
+          <div class="info-value accent-front" id="info-front">—</div>
+        </div>
+
+        <div class="info-box" role="status" aria-label="Rear ticket">
+          <div class="info-label">Rear Ticket</div>
+          <div class="info-value accent-rear" id="info-rear">—</div>
+        </div>
+
+        <div class="info-box" role="status" aria-label="Queue size">
+          <div class="info-label">Size</div>
+          <div class="info-value" id="info-size">0 / 5</div>
+        </div>
+
+        <div class="info-box" role="status" aria-label="Queue status">
+          <div class="info-label">Status</div>
+          <span class="status-badge badge-empty" id="info-status">Empty</span>
+        </div>
+
+        <div class="info-divider"></div>
+
+        <div class="info-box" role="status" aria-label="Front index">
+          <div class="info-label">front index</div>
+          <div class="info-value mono" id="info-front-idx">—</div>
+        </div>
+
+        <div class="info-box" role="status" aria-label="Rear index">
+          <div class="info-label">rear index</div>
+          <div class="info-value mono" id="info-rear-idx">—</div>
+        </div>
+
+        <div class="info-divider"></div>
+
+        <div class="complexity-note" aria-label="Time complexity summary">
+          <strong>⚡ Time Complexity</strong>
+          <span>enqueue &nbsp;O(1)</span>
+          <span>dequeue &nbsp;O(1)</span>
+          <span>front &nbsp;&nbsp;&nbsp;O(1)</span>
+          <span>rear &nbsp;&nbsp;&nbsp;&nbsp;O(1)</span>
+          <span>isEmpty &nbsp;O(1)</span>
+          <span>isFull &nbsp;&nbsp;O(1)</span>
+        </div>
+      </aside><!-- /.info-panel -->
+
+    </div><!-- /.card-body -->
+
+    <!-- ══════════════════════════════════════════
+         OPERATION LOG
+    ══════════════════════════════════════════ -->
+    <section class="log-section" aria-label="Operation history log">
+
+      <div class="log-header">
+        <h3>📋 Operation Log</h3>
+        <div class="log-tab-bar" role="tablist" aria-label="Log view switcher">
+          <button class="log-tab active" id="tab-btn-log"
+                  role="tab" aria-selected="true" aria-controls="log-view-log"
+                  data-view="log">
+            Log View
+          </button>
+          <button class="log-tab" id="tab-btn-table"
+                  role="tab" aria-selected="false" aria-controls="log-view-table"
+                  data-view="table">
+            Table View
+          </button>
+        </div>
+        <button class="btn-clear-log" id="btn-clear-log" aria-label="Clear all log entries">
+          🗑 Clear Log
+        </button>
+      </div>
+
+      <!-- Log list (newest at bottom) -->
+      <div id="log-view-log" class="log-view active"
+           role="tabpanel" aria-labelledby="tab-btn-log">
+        <div id="op-history"
+             role="log" aria-live="polite" aria-relevant="additions"
+             aria-label="Queue operation history">
+          <div class="log-empty-hint">Operations will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Table view -->
+      <div id="log-view-table" class="log-view"
+           role="tabpanel" aria-labelledby="tab-btn-table">
+        <div id="op-table-container">
+          <div class="log-empty-hint">No operations yet — perform some operations first.</div>
+        </div>
+      </div>
+
+    </section><!-- /.log-section -->
+
+  </main><!-- /.card -->
+
+  <!-- ══════════════════════════════════════════
+       EDUCATIONAL DEEP-DIVE (accordion)
+  ══════════════════════════════════════════ -->
+  <section class="edu-section" aria-label="Educational information about circular queues">
+
+    <div class="edu-header">
+      <h2>📚 Deep Dive — Viva &amp; Report Reference</h2>
+      <p>Click any section to expand</p>
+    </div>
+
+    <!-- 1. How It Works -->
+    <details class="edu-item" open>
+      <summary class="edu-summary">
+        <span class="edu-icon">📖</span>
+        <span>How It Works</span>
+        <span class="edu-chevron" aria-hidden="true">▼</span>
+      </summary>
+      <div class="edu-content">
+        <p>A <strong>circular queue</strong> (ring buffer) uses a fixed-size array whose
+          end wraps around to the beginning, forming a logical circle.
+          Unlike a plain linear queue — where freed head slots are wasted and the array
+          gradually "slides" toward the end — a circular queue <em>reuses</em> every slot.</p>
+
+        <h4>The Key Formula</h4>
+        <p>Every pointer advance uses modular arithmetic:</p>
+        <pre class="code-block">rear  = (rear  + 1) % capacity   // move rear forward; wraps slot 4 → slot 0
+front = (front + 1) % capacity   // move front forward after each dequeue</pre>
+
+        <h4>Why not a simple array queue?</h4>
+        <p>In a naive array queue, dequeuing either shifts every remaining element left —
+          <strong>O(n)</strong> — or leaves dead space at the front.
+          After <em>capacity</em> enqueue+dequeue cycles the rear pointer reaches the end
+          and the queue appears full, even though the front slots are free.
+          The circular approach reclaims those slots in O(1).</p>
+
+        <h4>State Variables</h4>
+        <ul>
+          <li><code>array[0..capacity-1]</code> — fixed-size backing store</li>
+          <li><code>front</code> — index of the oldest element (next to be removed)</li>
+          <li><code>rear</code> — index of the newest element (most recently added)</li>
+          <li><code>count</code> — number of current elements
+              (distinguishes full from empty when front&nbsp;==&nbsp;rear)</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- 2. Pseudocode -->
+    <details class="edu-item">
+      <summary class="edu-summary">
+        <span class="edu-icon">💻</span>
+        <span>Pseudocode</span>
+        <span class="edu-chevron" aria-hidden="true">▼</span>
+      </summary>
+      <div class="edu-content">
+        <div class="pseudo-grid">
+          <div class="pseudo-block">
+            <div class="pseudo-title">ENQUEUE(ticket)</div>
+            <pre>if count == capacity:
+    raise OverflowError
+rear  ← (rear + 1) mod capacity
+array[rear] ← ticket
+count ← count + 1</pre>
+          </div>
+          <div class="pseudo-block">
+            <div class="pseudo-title">DEQUEUE()</div>
+            <pre>if count == 0:
+    raise UnderflowError
+ticket ← array[front]
+array[front] ← null
+front ← (front + 1) mod capacity
+count ← count - 1
+return ticket</pre>
+          </div>
+          <div class="pseudo-block">
+            <div class="pseudo-title">FRONT()</div>
+            <pre>if count == 0:
+    raise Error
+return array[front]</pre>
+          </div>
+          <div class="pseudo-block">
+            <div class="pseudo-title">REAR()</div>
+            <pre>if count == 0:
+    raise Error
+return array[rear]</pre>
+          </div>
+          <div class="pseudo-block">
+            <div class="pseudo-title">IS_EMPTY()</div>
+            <pre>return count == 0</pre>
+          </div>
+          <div class="pseudo-block">
+            <div class="pseudo-title">IS_FULL()</div>
+            <pre>return count == capacity</pre>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- 3. Complexity Table -->
+    <details class="edu-item">
+      <summary class="edu-summary">
+        <span class="edu-icon">⏱</span>
+        <span>Time &amp; Space Complexity</span>
+        <span class="edu-chevron" aria-hidden="true">▼</span>
+      </summary>
+      <div class="edu-content">
+        <div class="table-scroll">
+          <table class="complexity-table" aria-label="Time and space complexity table">
+            <thead>
+              <tr>
+                <th>Operation</th>
+                <th>Time</th>
+                <th>Aux Space</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>enqueue()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>One modular addition + one array write</td>
+              </tr>
+              <tr>
+                <td><code>dequeue()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>One array read + one modular addition</td>
+              </tr>
+              <tr>
+                <td><code>front()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>Direct index access via front pointer</td>
+              </tr>
+              <tr>
+                <td><code>rear()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>Direct index access via rear pointer</td>
+              </tr>
+              <tr>
+                <td><code>isEmpty()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>Single comparison: count == 0</td>
+              </tr>
+              <tr>
+                <td><code>isFull()</code></td>
+                <td class="cell-o1">O(1)</td>
+                <td class="cell-o1">O(1)</td>
+                <td>Single comparison: count == capacity</td>
+              </tr>
+              <tr class="row-total">
+                <td><strong>Total Space</strong></td>
+                <td colspan="2" class="cell-on">O(n)</td>
+                <td>n = capacity — fixed backing array</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="complexity-footer">
+          All six operations are <strong>constant time</strong> — only simple arithmetic
+          and direct array indexing, no loops or shifting.
+        </p>
+      </div>
+    </details>
+
+    <!-- 4. Why FIFO is Fair -->
+    <details class="edu-item">
+      <summary class="edu-summary">
+        <span class="edu-icon">⚖️</span>
+        <span>Why FIFO is Fair</span>
+        <span class="edu-chevron" aria-hidden="true">▼</span>
+      </summary>
+      <div class="edu-content">
+        <ul>
+          <li><strong>Arrival order preserved</strong> — the first customer to raise a ticket
+              is always served first. Nobody skips the line.</li>
+          <li><strong>No starvation</strong> — every ticket will eventually reach the front;
+              later arrivals cannot block earlier ones.</li>
+          <li><strong>Predictable wait times</strong> — a customer knows they must wait for
+              exactly <em>count</em> tickets ahead of them, making the system transparent.</li>
+          <li><strong>Equal treatment</strong> — in a basic FIFO queue every ticket is equal;
+              priority requires a separate priority-queue structure.</li>
+          <li><strong>Real-world analogy</strong> — printer spoolers, CPU round-robin scheduling,
+              network packet buffers, and supermarket checkouts all rely on FIFO fairness.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- 5. Limitations -->
+    <details class="edu-item">
+      <summary class="edu-summary">
+        <span class="edu-icon">⚠️</span>
+        <span>Limitations &amp; Real-World Considerations</span>
+        <span class="edu-chevron" aria-hidden="true">▼</span>
+      </summary>
+      <div class="edu-content">
+        <ul>
+          <li><strong>Fixed capacity</strong> — when all 5 slots are occupied, new ticket
+              requests are rejected (overflow). In a real call centre tickets must not be
+              silently discarded; the caller must be informed or placed in a secondary queue.</li>
+          <li><strong>No dynamic resizing</strong> — unlike a linked-list queue, a circular
+              array queue cannot grow at runtime. Burst traffic requires a larger pre-allocated
+              buffer or a growable queue backed by a dynamic array.</li>
+          <li><strong>No priority support</strong> — FIFO treats all tickets equally. VIP
+              or critical escalations would need a separate priority queue structure.</li>
+          <li><strong>Not thread-safe</strong> — concurrent enqueue/dequeue would need mutex
+              locks or lock-free atomic operations in a multi-agent environment.</li>
+          <li><strong>Memory always allocated</strong> — even when empty the full-size array
+              exists, wasting memory compared to a linked-list queue that only allocates
+              nodes as needed.</li>
+        </ul>
+      </div>
+    </details>
+
+  </section><!-- /.edu-section -->
+
+  <!-- Toast notification (injected by JS) -->
+  <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+  <footer class="site-footer" role="contentinfo">
+    Circular Queue &mdash; Data Structures &bull; Enqueue O(1) &bull; Dequeue O(1) &bull; Space O(n)
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
